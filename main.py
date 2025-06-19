@@ -22,26 +22,34 @@ class EventLoop:
 EVENT_LOOP = EventLoop()
 
 class Future:
-    def __init__(self, future):
+    def __init__(self, simulate_delays, future):
         self.thens = []
+        def run():
+            res = future()
+            for f in self.thens:
+                res = f(res)
+            return res
         # using async timer to simulate aysnc behavior
-        EVENT_LOOP.after(future, lambda: [f() for f in self.thens])
+        EVENT_LOOP.after(simulate_delays, run)
 
     def then(self, f):
         self.thens.append(f)
+        return self
 
-
-def async_write(_):
-    # simulate need 3 seconds to finish writing
+def async_write():
     # can use epoll for an actual implementation
-    return 3
+    return lambda: "return value from async write"
 
 def main():
-    Future(async_write("some writing task")) \
-        .then(lambda: (print("writing task done")))
-    EVENT_LOOP.after(2, lambda: print(2))
-    EVENT_LOOP.after(1, lambda: print(1))
-    EVENT_LOOP.after(5, lambda: print(5))
+    print("some random task 1")
+    Future(3, async_write()) \
+        .then(lambda _: (print("writing task done"))) \
+        .then(lambda x: (print("previous result is " + str(x))))
+    print("some random task 2")
+    EVENT_LOOP.after(2, lambda: print("timer at 2 sec"))
+    print("some random task 3")
+    EVENT_LOOP.after(1, lambda: print("timer at 1 sec"))
+    EVENT_LOOP.after(5, lambda: print("timer at 5 sec"))
     EVENT_LOOP.run()
 
 if __name__ == "__main__":
